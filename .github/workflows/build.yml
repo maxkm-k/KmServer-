@@ -1,0 +1,433 @@
+name: Build KmServer APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Create Android Project Structure
+        run: |
+          mkdir -p app/src/main/java/com/km/server
+          mkdir -p app/src/main/res/drawable
+          mkdir -p app/src/main/res/layout
+          mkdir -p app/src/main/res/mipmap-anydpi-v26
+
+          # 1. build.gradle (Project)
+          cat << 'EOF' > build.gradle
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:8.2.0'
+              }
+          }
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          task clean(type: Delete) {
+              delete rootProject.buildDir
+          }
+          EOF
+
+          # 2. settings.gradle
+          cat << 'EOF' > settings.gradle
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "KmServer"
+          include ':app'
+          EOF
+
+          # 3. app/build.gradle
+          cat << 'EOF' > app/build.gradle
+          plugins {
+              id 'com.android.application'
+          }
+          android {
+              namespace 'com.km.server'
+              compileSdk 34
+
+              defaultConfig {
+                  applicationId "com.km.server"
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+                  }
+              }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          dependencies {
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+              implementation 'com.google.android.material:material:1.11.0'
+              implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+          }
+          EOF
+
+          # 4. AndroidManifest.xml
+          cat << 'EOF' > app/src/main/AndroidManifest.xml
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+              <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+              <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+              <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+              <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+
+              <application
+                  android:allowBackup="true"
+                  android:icon="@mipmap/ic_launcher"
+                  android:roundIcon="@mipmap/ic_launcher_round"
+                  android:label="KmServer"
+                  android:supportsRtl="true"
+                  android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          # 5. Network Icon Vector XML (Km Icon)
+          cat << 'EOF' > app/src/main/res/drawable/ic_network_server.xml
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="24"
+              android:viewportHeight="24">
+            <path
+                android:fillColor="#1976D2"
+                android:pathData="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM16.29,14.29L12,18l-4.29,-3.71 1.42,-1.42L11,15.17V7h2v8.17l1.88,-1.88 1.41,1.42z"/>
+          </vector>
+          EOF
+
+          cat << 'EOF' > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:color="#FFFFFF"/>
+              <foreground android:drawable="@drawable/ic_network_server"/>
+          </adaptive-icon>
+          EOF
+          cp app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+
+          # 6. activity_main.xml Layout
+          cat << 'EOF' > app/src/main/res/layout/activity_main.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical"
+              android:padding="20dp"
+              android:gravity="center_horizontal"
+              android:background="#F5F5F5">
+
+              <TextView
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:text="KmServer"
+                  android:textSize="26sp"
+                  android:textStyle="bold"
+                  android:textColor="#1976D2"
+                  android:layout_marginBottom="20dp"/>
+
+              <TextView
+                  android:id="@+id/tvDeviceIp"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:text="Device IP: Fetching..."
+                  android:textSize="16sp"
+                  android:padding="12dp"
+                  android:background="#FFFFFF"
+                  android:elevation="2dp"
+                  android:layout_marginBottom="12dp"/>
+
+              <EditText
+                  android:id="@+id/etFolderPath"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:hint="Select Folder Path (/sdcard/Download)"
+                  android:textSize="14sp"
+                  android:padding="12dp"
+                  android:background="#FFFFFF"
+                  android:elevation="2dp"
+                  android:layout_marginBottom="12dp"/>
+
+              <Button
+                  android:id="@+id/btnSelectFolder"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:text="Choose Folder"
+                  android:layout_marginBottom="12dp"/>
+
+              <EditText
+                  android:id="@+id/etTargetIp"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:hint="Enter Other Mobile IP (Optional)"
+                  android:textSize="14sp"
+                  android:padding="12dp"
+                  android:background="#FFFFFF"
+                  android:elevation="2dp"
+                  android:layout_marginBottom="20dp"/>
+
+              <Button
+                  android:id="@+id/btnStartServer"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:text="Start Wi-Fi Server"
+                  android:backgroundTint="#388E3C"
+                  android:textColor="#FFFFFF"
+                  android:layout_marginBottom="20dp"/>
+
+              <TextView
+                  android:id="@+id/tvStatus"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:text="Status: Stopped"
+                  android:textSize="15sp"
+                  android:textStyle="bold"
+                  android:padding="14dp"
+                  android:background="#FFFFFF"
+                  android:elevation="2dp"
+                  android:gravity="center"/>
+
+          </LinearLayout>
+          EOF
+
+          # 7. MainActivity.java
+          cat << 'EOF' > app/src/main/java/com/km/server/MainActivity.java
+          package com.km.server;
+
+          import android.content.Intent;
+          import android.net.Uri;
+          import android.os.Bundle;
+          import android.os.Environment;
+          import android.widget.Button;
+          import android.widget.EditText;
+          import android.widget.TextView;
+          import android.widget.Toast;
+          import androidx.appcompat.app.AppCompatActivity;
+          import java.io.*;
+          import java.net.*;
+          import java.util.Enumeration;
+
+          public class MainActivity extends AppCompatActivity {
+              private EditText etFolderPath, etTargetIp;
+              private TextView tvDeviceIp, tvStatus;
+              private Button btnStartServer, btnSelectFolder;
+              private boolean isRunning = false;
+              private ServerSocket serverSocket;
+              private Thread serverThread;
+              private File sharedFolder;
+              private static final int PORT = 2221;
+
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  setContentView(R.layout.activity_main);
+
+                  etFolderPath = findViewById(R.id.etFolderPath);
+                  etTargetIp = findViewById(R.id.etTargetIp);
+                  tvDeviceIp = findViewById(R.id.tvDeviceIp);
+                  tvStatus = findViewById(R.id.tvStatus);
+                  btnStartServer = findViewById(R.id.btnStartServer);
+                  btnSelectFolder = findViewById(R.id.btnSelectFolder);
+
+                  String defaultPath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/Download";
+                  etFolderPath.setText(defaultPath);
+
+                  String ip = getLocalIpAddress();
+                  tvDeviceIp.setText("Device IP: " + (ip != null ? ip : "Unknown"));
+
+                  btnSelectFolder.v -> {
+                      etFolderPath.setText(Environment.getExternalStorageDirectory().getAbsolutePath());
+                  });
+
+                  btnStartServer.setOnClickListener(v -> {
+                      if (!isRunning) {
+                          String pathStr = etFolderPath.getText().toString();
+                          sharedFolder = new File(pathStr);
+                          if (!sharedFolder.exists() || !sharedFolder.isDirectory()) {
+                              Toast.makeText(this, "Invalid folder path!", Toast.LENGTH_SHORT).show();
+                              return;
+                          }
+                          startServer();
+                      } else {
+                          stopServer();
+                      }
+                  });
+              }
+
+              private String getLocalIpAddress() {
+                  try {
+                      for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
+                          NetworkInterface intf = en.nextElement();
+                          for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
+                              InetAddress inetAddress = enumIpAddr.nextElement();
+                              if (!inetAddress.isLoopbackAddress() && inetAddress instanceof Inet4Address) {
+                                  return inetAddress.getHostAddress();
+                              }
+                          }
+                      }
+                  } catch (Exception ex) {
+                      ex.printStackTrace();
+                  }
+                  return "127.0.0.1";
+              }
+
+              private void startServer() {
+                  isRunning = true;
+                  btnStartServer.setText("Stop Wi-Fi Server");
+                  btnStartServer.setBackgroundColor(getResources().getColor(android.R.color.holo_red_dark));
+                  
+                  String ip = getLocalIpAddress();
+                  tvStatus.setText("Server Running!\nUse URL in browser:\nhttp://" + ip + ":" + PORT);
+
+                  serverThread = new Thread(() -> {
+                      try {
+                          serverSocket = new ServerSocket(PORT);
+                          while (isRunning) {
+                              Socket clientSocket = serverSocket.accept();
+                              new Thread(new ClientHandler(clientSocket, sharedFolder)).start();
+                          }
+                      } catch (IOException e) {
+                          if (isRunning) e.printStackTrace();
+                      }
+                  });
+                  serverThread.start();
+              }
+
+              private void stopServer() {
+                  isRunning = false;
+                  try {
+                      if (serverSocket != null) serverSocket.close();
+                  } catch (IOException e) {
+                      e.printStackTrace();
+                  }
+                  btnStartServer.setText("Start Wi-Fi Server");
+                  btnStartServer.setBackgroundColor(getResources().getColor(android.R.color.holo_green_dark));
+                  tvStatus.setText("Status: Stopped");
+              }
+
+              private static class ClientHandler implements Runnable {
+                  private Socket socket;
+                  private File folder;
+
+                  ClientHandler(Socket socket, File folder) {
+                      this.socket = socket;
+                      this.folder = folder;
+                  }
+
+                  @Override
+                  public void run() {
+                      try {
+                          BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                          String line = reader.readLine();
+                          if (line == null) return;
+
+                          String[] parts = line.split(" ");
+                          if (parts.length < 2) return;
+                          String path = parts[1];
+
+                          OutputStream out = socket.getOutputStream();
+
+                          if (path.equals("/")) {
+                              StringBuilder html = new StringBuilder("<html><body><h1>KmServer Files</h1><ul>");
+                              File[] files = folder.listFiles();
+                              if (files != null) {
+                                  for (File f : files) {
+                                      html.append("<li><a href=\"/file?name=").append(Uri.encode(f.getName())).append("\">").append(f.getName()).append("</a></li>");
+                                  }
+                              }
+                              html.append("</ul></body></html>");
+                              byte[] data = html.toString().getBytes();
+                              out.write("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n".getBytes());
+                              out.write(data);
+                          } else if (path.startsWith("/file?name=")) {
+                              String fileName = URLDecoder.decode(path.substring(11), "UTF-8");
+                              File fileToShare = new File(folder, fileName);
+                              if (fileToShare.exists() && fileToShare.isFile()) {
+                                  out.write(("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Disposition: attachment; filename=\"" + fileToShare.getName() + "\"\r\n\r\n").getBytes());
+                                  FileInputStream fis = new FileInputStream(fileToShare);
+                                  byte[] buffer = new byte[4096];
+                                  int count;
+                                  while ((count = fis.read(buffer)) != -1) {
+                                      out.write(buffer, 0, count);
+                                  }
+                                  fis.close();
+                              } else {
+                                  out.write("HTTP/1.1 404 Not Found\r\n\r\nFile Not Found".getBytes());
+                              }
+                          }
+                          out.flush();
+                          socket.close();
+                      } catch (Exception e) {
+                          e.printStackTrace();
+                      }
+                  }
+              }
+
+              @Override
+              protected void onDestroy() {
+                  super.onDestroy();
+                  stopServer();
+              }
+          }
+          EOF
+          
+          # 8. Proguard rules
+          echo "" > app/proguard-rules.pro
+
+      - name: Build APK with Gradle
+        run: ./gradlew assembleRelease
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KmServer-APK
+          path: app/build/outputs/apk/release/app-release-unsigned.apk
