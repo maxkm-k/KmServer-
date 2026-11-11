@@ -88,8 +88,8 @@ jobs:
                   versionName "1.0"
               }
               buildTypes {
-                  release {
-                      minifyEnabled false
+                  debug {
+                      debuggable true
                   }
               }
               compileOptions {
@@ -400,16 +400,16 @@ jobs:
           }
           EOF
 
-      - name: Setup Gradle 8.4 and Build APK
+      - name: Setup Gradle 8.4
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: 8.4
 
-      - name: Build APK
-        run: gradle assembleRelease --no-daemon
+      - name: Build Debug Signed APK
+        run: gradle assembleDebug --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: KmServer-APK
-          path: app/build/outputs/apk/release/app-release-unsigned.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
