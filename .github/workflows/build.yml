@@ -25,12 +25,49 @@ jobs:
 
       - name: Create Android Project Structure
         run: |
+          mkdir -p gradle/wrapper
           mkdir -p app/src/main/java/com/km/server
           mkdir -p app/src/main/res/drawable
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/mipmap-anydpi-v26
 
-          # 1. build.gradle (Project)
+          # 1. gradle.properties (Fixes AndroidX AarMetadata error)
+          cat << 'EOF' > gradle.properties
+          android.useAndroidX=true
+          android.nonTransitiveRClass=true
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          EOF
+
+          # 2. gradle-wrapper.properties (Locks Gradle to stable 8.4)
+          cat << 'EOF' > gradle/wrapper/gradle-wrapper.properties
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.4-bin.zip
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+
+          # 3. settings.gradle
+          cat << 'EOF' > settings.gradle
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "KmServer"
+          include ':app'
+          EOF
+
+          # 4. build.gradle (Project)
           cat << 'EOF' > build.gradle
           buildscript {
               repositories {
@@ -38,7 +75,7 @@ jobs:
                   mavenCentral()
               }
               dependencies {
-                  classpath 'com.android.tools.build:gradle:8.2.0'
+                  classpath 'com.android.tools.build:gradle:8.2.2'
               }
           }
           allprojects {
@@ -49,13 +86,7 @@ jobs:
           }
           EOF
 
-          # 2. settings.gradle
-          cat << 'EOF' > settings.gradle
-          rootProject.name = "KmServer"
-          include ':app'
-          EOF
-
-          # 3. app/build.gradle
+          # 5. app/build.gradle
           cat << 'EOF' > app/build.gradle
           plugins {
               id 'com.android.application'
@@ -87,7 +118,7 @@ jobs:
           }
           EOF
 
-          # 4. AndroidManifest.xml
+          # 6. AndroidManifest.xml
           cat << 'EOF' > app/src/main/AndroidManifest.xml
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET" />
@@ -114,7 +145,7 @@ jobs:
           </manifest>
           EOF
 
-          # 5. Network Server Icon (Km Icon)
+          # 7. Network Server Icon Vector (Km Icon)
           cat << 'EOF' > app/src/main/res/drawable/ic_network_server.xml
           <vector xmlns:android="http://schemas.android.com/apk/res/android"
               android:width="108dp"
@@ -134,7 +165,7 @@ jobs:
           </adaptive-icon>
           EOF
 
-          # 6. Layout UI
+          # 8. Layout UI
           cat << 'EOF' > app/src/main/res/layout/activity_main.xml
           <?xml version="1.0" encoding="utf-8"?>
           <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -207,7 +238,7 @@ jobs:
           </LinearLayout>
           EOF
 
-          # 7. Java Implementation
+          # 9. Java Implementation
           cat << 'EOF' > app/src/main/java/com/km/server/MainActivity.java
           package com.km.server;
 
@@ -298,7 +329,7 @@ jobs:
                               new Thread(new ClientHandler(clientSocket, sharedFolder)).start();
                           }
                       } catch (IOException e) {
-                          // Server socket closed
+                          // Closed
                       }
                   });
                   serverThread.start();
@@ -384,8 +415,11 @@ jobs:
           }
           EOF
 
-      - name: Build APK using Global Gradle
-        run: gradle assembleRelease --no-daemon
+      - name: Setup Gradle Wrapper and Build APK
+        run: |
+          gradle wrapper --gradle-version 8.4
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
