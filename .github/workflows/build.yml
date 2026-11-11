@@ -17,8 +17,24 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Setup Android SDK Manually
+        run: |
+          export ANDROID_SDK_ROOT=$HOME/android-sdk
+          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+          
+          # Download Android Command Line Tools
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdtools.zip
+          unzip -q cmdtools.zip -d $ANDROID_SDK_ROOT/cmdline-tools
+          mv $ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest
+          
+          # Export path
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$ANDROID_SDK_ROOT/platform-tools" >> $GITHUB_PATH
+          
+          # Accept licenses and install platform-tools & build-tools
+          yes | sdkmanager --licenses || true
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Create Android Project Structure
         run: |
@@ -284,7 +300,7 @@ jobs:
                   String ip = getLocalIpAddress();
                   tvDeviceIp.setText("Device IP: " + (ip != null ? ip : "Unknown"));
 
-                  btnSelectFolder.v -> {
+                  btnSelectFolder.setOnClickListener(v -> {
                       etFolderPath.setText(Environment.getExternalStorageDirectory().getAbsolutePath());
                   });
 
@@ -323,7 +339,6 @@ jobs:
               private void startServer() {
                   isRunning = true;
                   btnStartServer.setText("Stop Wi-Fi Server");
-                  btnStartServer.setBackgroundColor(getResources().getColor(android.R.color.holo_red_dark));
                   
                   String ip = getLocalIpAddress();
                   tvStatus.setText("Server Running!\nUse URL in browser:\nhttp://" + ip + ":" + PORT);
@@ -350,7 +365,6 @@ jobs:
                       e.printStackTrace();
                   }
                   btnStartServer.setText("Start Wi-Fi Server");
-                  btnStartServer.setBackgroundColor(getResources().getColor(android.R.color.holo_green_dark));
                   tvStatus.setText("Status: Stopped");
               }
 
@@ -419,7 +433,7 @@ jobs:
               }
           }
           EOF
-          
+
           # 8. Proguard rules
           echo "" > app/proguard-rules.pro
 
