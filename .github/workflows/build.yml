@@ -1,6 +1,8 @@
 name: Build KmServer APK
 
 on:
+  push:
+    branches: [ "**" ]
   workflow_dispatch:
 
 jobs:
@@ -17,8 +19,9 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Pre-installed Android SDK Licenses
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
       - name: Create Android Project Structure
         run: |
@@ -44,27 +47,10 @@ jobs:
                   mavenCentral()
               }
           }
-          task clean(type: Delete) {
-              delete rootProject.buildDir
-          }
           EOF
 
           # 2. settings.gradle
           cat << 'EOF' > settings.gradle
-          pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
           rootProject.name = "KmServer"
           include ':app'
           EOF
@@ -88,7 +74,6 @@ jobs:
               buildTypes {
                   release {
                       minifyEnabled false
-                      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
                   }
               }
               compileOptions {
@@ -99,7 +84,6 @@ jobs:
           dependencies {
               implementation 'androidx.appcompat:appcompat:1.6.1'
               implementation 'com.google.android.material:material:1.11.0'
-              implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
           }
           EOF
 
@@ -110,17 +94,13 @@ jobs:
               <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
               <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
               <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-              <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-              <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-              <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
               <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
               <application
                   android:allowBackup="true"
                   android:icon="@mipmap/ic_launcher"
-                  android:roundIcon="@mipmap/ic_launcher_round"
+                  android:roundIcon="@mipmap/ic_launcher"
                   android:label="KmServer"
-                  android:supportsRtl="true"
                   android:theme="@style/Theme.AppCompat.Light.NoActionBar">
                   <activity
                       android:name=".MainActivity"
@@ -134,7 +114,7 @@ jobs:
           </manifest>
           EOF
 
-          # 5. Network Icon Vector XML (Km Icon)
+          # 5. Network Server Icon (Km Icon)
           cat << 'EOF' > app/src/main/res/drawable/ic_network_server.xml
           <vector xmlns:android="http://schemas.android.com/apk/res/android"
               android:width="108dp"
@@ -153,9 +133,8 @@ jobs:
               <foreground android:drawable="@drawable/ic_network_server"/>
           </adaptive-icon>
           EOF
-          cp app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
 
-          # 6. activity_main.xml Layout
+          # 6. Layout UI
           cat << 'EOF' > app/src/main/res/layout/activity_main.xml
           <?xml version="1.0" encoding="utf-8"?>
           <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -183,36 +162,26 @@ jobs:
                   android:textSize="16sp"
                   android:padding="12dp"
                   android:background="#FFFFFF"
-                  android:elevation="2dp"
                   android:layout_marginBottom="12dp"/>
 
               <EditText
                   android:id="@+id/etFolderPath"
                   android:layout_width="match_parent"
                   android:layout_height="wrap_content"
-                  android:hint="Select Folder Path (/sdcard/Download)"
+                  android:hint="Folder Path (/sdcard/Download)"
                   android:textSize="14sp"
                   android:padding="12dp"
                   android:background="#FFFFFF"
-                  android:elevation="2dp"
-                  android:layout_marginBottom="12dp"/>
-
-              <Button
-                  android:id="@+id/btnSelectFolder"
-                  android:layout_width="match_parent"
-                  android:layout_height="wrap_content"
-                  android:text="Choose Folder"
                   android:layout_marginBottom="12dp"/>
 
               <EditText
                   android:id="@+id/etTargetIp"
                   android:layout_width="match_parent"
                   android:layout_height="wrap_content"
-                  android:hint="Enter Other Mobile IP (Optional)"
+                  android:hint="Other Mobile IP (Optional)"
                   android:textSize="14sp"
                   android:padding="12dp"
                   android:background="#FFFFFF"
-                  android:elevation="2dp"
                   android:layout_marginBottom="20dp"/>
 
               <Button
@@ -233,17 +202,15 @@ jobs:
                   android:textStyle="bold"
                   android:padding="14dp"
                   android:background="#FFFFFF"
-                  android:elevation="2dp"
                   android:gravity="center"/>
 
           </LinearLayout>
           EOF
 
-          # 7. MainActivity.java
+          # 7. Java Implementation
           cat << 'EOF' > app/src/main/java/com/km/server/MainActivity.java
           package com.km.server;
 
-          import android.content.Intent;
           import android.net.Uri;
           import android.os.Bundle;
           import android.os.Environment;
@@ -259,7 +226,7 @@ jobs:
           public class MainActivity extends AppCompatActivity {
               private EditText etFolderPath, etTargetIp;
               private TextView tvDeviceIp, tvStatus;
-              private Button btnStartServer, btnSelectFolder;
+              private Button btnStartServer;
               private boolean isRunning = false;
               private ServerSocket serverSocket;
               private Thread serverThread;
@@ -276,24 +243,19 @@ jobs:
                   tvDeviceIp = findViewById(R.id.tvDeviceIp);
                   tvStatus = findViewById(R.id.tvStatus);
                   btnStartServer = findViewById(R.id.btnStartServer);
-                  btnSelectFolder = findViewById(R.id.btnSelectFolder);
 
                   String defaultPath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/Download";
                   etFolderPath.setText(defaultPath);
 
                   String ip = getLocalIpAddress();
-                  tvDeviceIp.setText("Device IP: " + (ip != null ? ip : "Unknown"));
-
-                  btnSelectFolder.setOnClickListener(v -> {
-                      etFolderPath.setText(Environment.getExternalStorageDirectory().getAbsolutePath());
-                  });
+                  tvDeviceIp.setText("Device IP: " + ip);
 
                   btnStartServer.setOnClickListener(v -> {
                       if (!isRunning) {
-                          String pathStr = etFolderPath.getText().toString();
+                          String pathStr = etFolderPath.getText().toString().trim();
                           sharedFolder = new File(pathStr);
                           if (!sharedFolder.exists() || !sharedFolder.isDirectory()) {
-                              Toast.makeText(this, "Invalid folder path!", Toast.LENGTH_SHORT).show();
+                              Toast.makeText(this, "Folder does not exist!", Toast.LENGTH_SHORT).show();
                               return;
                           }
                           startServer();
@@ -323,9 +285,10 @@ jobs:
               private void startServer() {
                   isRunning = true;
                   btnStartServer.setText("Stop Wi-Fi Server");
+                  btnStartServer.setBackgroundColor(0xFFD32F2F);
                   
                   String ip = getLocalIpAddress();
-                  tvStatus.setText("Server Running!\nUse URL in browser:\nhttp://" + ip + ":" + PORT);
+                  tvStatus.setText("Server Running!\nAccess URL on other mobile:\nhttp://" + ip + ":" + PORT);
 
                   serverThread = new Thread(() -> {
                       try {
@@ -335,7 +298,7 @@ jobs:
                               new Thread(new ClientHandler(clientSocket, sharedFolder)).start();
                           }
                       } catch (IOException e) {
-                          if (isRunning) e.printStackTrace();
+                          // Server socket closed
                       }
                   });
                   serverThread.start();
@@ -349,12 +312,13 @@ jobs:
                       e.printStackTrace();
                   }
                   btnStartServer.setText("Start Wi-Fi Server");
+                  btnStartServer.setBackgroundColor(0xFF388E3C);
                   tvStatus.setText("Status: Stopped");
               }
 
               private static class ClientHandler implements Runnable {
-                  private Socket socket;
-                  private File folder;
+                  private final Socket socket;
+                  private final File folder;
 
                   ClientHandler(Socket socket, File folder) {
                       this.socket = socket;
@@ -363,8 +327,9 @@ jobs:
 
                   @Override
                   public void run() {
-                      try {
-                          BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                      try (BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                           OutputStream out = socket.getOutputStream()) {
+
                           String line = reader.readLine();
                           if (line == null) return;
 
@@ -372,40 +337,41 @@ jobs:
                           if (parts.length < 2) return;
                           String path = parts[1];
 
-                          OutputStream out = socket.getOutputStream();
-
                           if (path.equals("/")) {
-                              StringBuilder html = new StringBuilder("<html><body><h1>KmServer Files</h1><ul>");
+                              StringBuilder html = new StringBuilder("<html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>KmServer</title></head><body><h2>Files in Server</h2><ul>");
                               File[] files = folder.listFiles();
-                              if (files != null) {
+                              if (files != null && files.length > 0) {
                                   for (File f : files) {
-                                      html.append("<li><a href=\"/file?name=").append(Uri.encode(f.getName())).append("\">").append(f.getName()).append("</a></li>");
+                                      if (f.isFile()) {
+                                          html.append("<li><a href=\"/file?name=").append(Uri.encode(f.getName())).append("\">").append(f.getName()).append("</a></li><br>");
+                                      }
                                   }
+                              } else {
+                                  html.append("<p>Folder is empty.</p>");
                               }
                               html.append("</ul></body></html>");
                               byte[] data = html.toString().getBytes();
-                              out.write("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n".getBytes());
+                              out.write("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n".getBytes());
                               out.write(data);
                           } else if (path.startsWith("/file?name=")) {
                               String fileName = URLDecoder.decode(path.substring(11), "UTF-8");
                               File fileToShare = new File(folder, fileName);
                               if (fileToShare.exists() && fileToShare.isFile()) {
-                                  out.write(("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Disposition: attachment; filename=\"" + fileToShare.getName() + "\"\r\n\r\n").getBytes());
-                                  FileInputStream fis = new FileInputStream(fileToShare);
-                                  byte[] buffer = new byte[4096];
-                                  int count;
-                                  while ((count = fis.read(buffer)) != -1) {
-                                      out.write(buffer, 0, count);
+                                  out.write(("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Disposition: attachment; filename=\"" + fileToShare.getName() + "\"\r\nConnection: close\r\n\r\n").getBytes());
+                                  try (FileInputStream fis = new FileInputStream(fileToShare)) {
+                                      byte[] buffer = new byte[8192];
+                                      int count;
+                                      while ((count = fis.read(buffer)) != -1) {
+                                          out.write(buffer, 0, count);
+                                      }
                                   }
-                                  fis.close();
                               } else {
-                                  out.write("HTTP/1.1 404 Not Found\r\n\r\nFile Not Found".getBytes());
+                                  out.write("HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\nFile Not Found".getBytes());
                               }
                           }
                           out.flush();
-                          socket.close();
                       } catch (Exception e) {
-                          e.printStackTrace();
+                          // Client disconnected
                       }
                   }
               }
@@ -418,11 +384,8 @@ jobs:
           }
           EOF
 
-          # 8. Proguard rules
-          echo "" > app/proguard-rules.pro
-
-      - name: Build APK with Gradle
-        run: ./gradlew assembleRelease
+      - name: Build APK using Global Gradle
+        run: gradle assembleRelease --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
