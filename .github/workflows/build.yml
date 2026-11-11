@@ -119,6 +119,7 @@ jobs:
                   android:roundIcon="@mipmap/ic_launcher"
                   android:label="KmServer"
                   android:requestLegacyExternalStorage="true"
+                  android:usesCleartextTraffic="true"
                   android:theme="@style/Theme.AppCompat.Light.NoActionBar">
                   <activity
                       android:name=".MainActivity"
@@ -128,11 +129,14 @@ jobs:
                           <category android:name="android.intent.category.LAUNCHER" />
                       </intent-filter>
                   </activity>
+                  <activity
+                      android:name=".ClientBrowserActivity"
+                      android:label="Remote KmServer" />
               </application>
           </manifest>
           EOF
 
-          # 6. Network Icon
+          # 6. Vector Icon
           cat << 'EOF' > app/src/main/res/drawable/ic_network_server.xml
           <vector xmlns:android="http://schemas.android.com/apk/res/android"
               android:width="108dp"
@@ -152,7 +156,7 @@ jobs:
           </adaptive-icon>
           EOF
 
-          # 7. Layout UI
+          # 7. activity_main.xml
           cat << 'EOF' > app/src/main/res/layout/activity_main.xml
           <?xml version="1.0" encoding="utf-8"?>
           <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
@@ -165,8 +169,7 @@ jobs:
                   android:layout_width="match_parent"
                   android:layout_height="wrap_content"
                   android:orientation="vertical"
-                  android:padding="20dp"
-                  android:gravity="center_horizontal">
+                  android:padding="20dp">
 
                   <TextView
                       android:layout_width="wrap_content"
@@ -175,6 +178,7 @@ jobs:
                       android:textSize="26sp"
                       android:textStyle="bold"
                       android:textColor="#1976D2"
+                      android:layout_gravity="center_horizontal"
                       android:layout_marginBottom="16dp"/>
 
                   <TextView
@@ -187,35 +191,54 @@ jobs:
                       android:background="#FFFFFF"
                       android:layout_marginBottom="12dp"/>
 
-                  <EditText
-                      android:id="@+id/etFolderPath"
+                  <!-- Folder Selection Section -->
+                  <TextView
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:text="Folder to Share:"
+                      android:textStyle="bold"
+                      android:textColor="#333333"
+                      android:layout_marginBottom="4dp"/>
+
+                  <TextView
+                      android:id="@+id/tvFolderPath"
                       android:layout_width="match_parent"
                       android:layout_height="wrap_content"
-                      android:hint="Folder Path"
-                      android:textSize="14sp"
+                      android:text="/storage/emulated/0/Download"
+                      android:textSize="13sp"
                       android:padding="12dp"
-                      android:background="#FFFFFF"
+                      android:background="#EFEFEF"
+                      android:textColor="#222222"
                       android:layout_marginBottom="8dp"/>
 
-                  <Button
-                      android:id="@+id/btnQuickDownload"
+                  <LinearLayout
                       android:layout_width="match_parent"
                       android:layout_height="wrap_content"
-                      android:text="Reset to Downloads Folder"
-                      android:backgroundTint="#607D8B"
-                      android:textColor="#FFFFFF"
-                      android:layout_marginBottom="12dp"/>
+                      android:orientation="horizontal"
+                      android:layout_marginBottom="16dp">
 
-                  <EditText
-                      android:id="@+id/etTargetIp"
-                      android:layout_width="match_parent"
-                      android:layout_height="wrap_content"
-                      android:hint="Other Mobile IP (Optional)"
-                      android:textSize="14sp"
-                      android:padding="12dp"
-                      android:background="#FFFFFF"
-                      android:layout_marginBottom="16dp"/>
+                      <Button
+                          android:id="@+id/btnChooseFolder"
+                          android:layout_width="0dp"
+                          android:layout_height="wrap_content"
+                          android:layout_weight="1"
+                          android:text="📁 Choose Folder"
+                          android:backgroundTint="#0288D1"
+                          android:textColor="#FFFFFF"
+                          android:layout_marginEnd="6dp"/>
 
+                      <Button
+                          android:id="@+id/btnResetDownload"
+                          android:layout_width="0dp"
+                          android:layout_height="wrap_content"
+                          android:layout_weight="1"
+                          android:text="Downloads"
+                          android:backgroundTint="#78909C"
+                          android:textColor="#FFFFFF"
+                          android:layout_marginStart="6dp"/>
+                  </LinearLayout>
+
+                  <!-- Server Start/Stop Button -->
                   <Button
                       android:id="@+id/btnStartServer"
                       android:layout_width="match_parent"
@@ -224,24 +247,139 @@ jobs:
                       android:backgroundTint="#388E3C"
                       android:textColor="#FFFFFF"
                       android:textSize="16sp"
-                      android:layout_marginBottom="16dp"/>
+                      android:layout_marginBottom="14dp"/>
 
+                  <!-- Server Status -->
                   <TextView
                       android:id="@+id/tvStatus"
                       android:layout_width="match_parent"
                       android:layout_height="wrap_content"
                       android:text="Status: Stopped"
-                      android:textSize="15sp"
-                      android:textStyle="bold"
-                      android:padding="14dp"
+                      android:textSize="14sp"
+                      android:padding="12dp"
                       android:background="#FFFFFF"
-                      android:gravity="center"/>
+                      android:gravity="center"
+                      android:layout_marginBottom="24dp"/>
+
+                  <!-- Client Remote Connect Section -->
+                  <TextView
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:text="Access Another Mobile's Server:"
+                      android:textStyle="bold"
+                      android:textColor="#333333"
+                      android:layout_marginBottom="6dp"/>
+
+                  <EditText
+                      android:id="@+id/etTargetIp"
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:hint="Enter Other Mobile IP (e.g. 192.168.1.5)"
+                      android:textSize="14sp"
+                      android:padding="12dp"
+                      android:background="#FFFFFF"
+                      android:layout_marginBottom="10dp"/>
+
+                  <Button
+                      android:id="@+id/btnConnectRemote"
+                      android:layout_width="match_parent"
+                      android:layout_height="48dp"
+                      android:text="Connect &amp; Copy Files"
+                      android:backgroundTint="#673AB7"
+                      android:textColor="#FFFFFF"/>
 
               </LinearLayout>
           </ScrollView>
           EOF
 
-          # 8. MainActivity.java
+          # 8. activity_client_browser.xml
+          cat << 'EOF' > app/src/main/res/layout/activity_client_browser.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical">
+
+              <WebView
+                  android:id="@+id/clientWebView"
+                  android:layout_width="match_parent"
+                  android:layout_height="match_parent" />
+          </LinearLayout>
+          EOF
+
+          # 9. ClientBrowserActivity.java
+          cat << 'EOF' > app/src/main/java/com/km/server/ClientBrowserActivity.java
+          package com.km.server;
+
+          import android.app.DownloadManager;
+          import android.net.Uri;
+          import android.os.Bundle;
+          import android.os.Environment;
+          import android.webkit.DownloadListener;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import android.widget.Toast;
+          import androidx.appcompat.app.AppCompatActivity;
+          import java.net.URLDecoder;
+
+          public class ClientBrowserActivity extends AppCompatActivity {
+              private WebView webView;
+
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  setContentView(R.layout.activity_client_browser);
+
+                  webView = findViewById(R.id.clientWebView);
+                  WebSettings settings = webView.getSettings();
+                  settings.setJavaScriptEnabled(true);
+                  settings.setBuiltInZoomControls(true);
+                  settings.setDisplayZoomControls(false);
+
+                  webView.setWebViewClient(new WebViewClient());
+
+                  webView.setDownloadListener(new DownloadListener() {
+                      @Override
+                      public void onDownloadStart(String url, String userAgent, String contentDisposition, String mimeType, long contentLength) {
+                          try {
+                              String fileName = "downloaded_file";
+                              if (url.contains("name=")) {
+                                  fileName = URLDecoder.decode(url.substring(url.indexOf("name=") + 5), "UTF-8");
+                              }
+                              DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+                              request.setMimeType(mimeType);
+                              request.setDescription("Downloading file from remote KmServer...");
+                              request.setTitle(fileName);
+                              request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                              request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
+                              DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+                              dm.enqueue(request);
+                              Toast.makeText(ClientBrowserActivity.this, "Downloading " + fileName + " to Downloads folder", Toast.LENGTH_SHORT).show();
+                          } catch (Exception e) {
+                              Toast.makeText(ClientBrowserActivity.this, "Download error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                          }
+                      }
+                  });
+
+                  String targetUrl = getIntent().getStringExtra("URL");
+                  if (targetUrl != null) {
+                      webView.loadUrl(targetUrl);
+                  }
+              }
+
+              @Override
+              public void onBackPressed() {
+                  if (webView.canGoBack()) {
+                      webView.goBack();
+                  } else {
+                      super.onBackPressed();
+                  }
+              }
+          }
+          EOF
+
+          # 10. MainActivity.java
           cat << 'EOF' > app/src/main/java/com/km/server/MainActivity.java
           package com.km.server;
 
@@ -252,11 +390,14 @@ jobs:
           import android.os.Build;
           import android.os.Bundle;
           import android.os.Environment;
+          import android.provider.DocumentsContract;
           import android.provider.Settings;
           import android.widget.Button;
           import android.widget.EditText;
           import android.widget.TextView;
           import android.widget.Toast;
+          import androidx.activity.result.ActivityResultLauncher;
+          import androidx.activity.result.contract.ActivityResultContracts;
           import androidx.appcompat.app.AppCompatActivity;
           import androidx.core.app.ActivityCompat;
           import androidx.core.content.ContextCompat;
@@ -265,35 +406,58 @@ jobs:
           import java.util.Enumeration;
 
           public class MainActivity extends AppCompatActivity {
-              private EditText etFolderPath, etTargetIp;
-              private TextView tvDeviceIp, tvStatus;
-              private Button btnStartServer, btnQuickDownload;
+              private TextView tvFolderPath, tvDeviceIp, tvStatus;
+              private EditText etTargetIp;
+              private Button btnStartServer, btnChooseFolder, btnResetDownload, btnConnectRemote;
               private boolean isRunning = false;
               private ServerSocket serverSocket;
               private Thread serverThread;
               private File sharedFolder;
               private static final int PORT = 2221;
 
+              private final ActivityResultLauncher<Uri> folderPickerLauncher = registerForActivityResult(
+                  new ActivityResultContracts.OpenDocumentTree(),
+                  uri -> {
+                      if (uri != null) {
+                          String path = getPathFromUri(uri);
+                          if (path != null) {
+                              tvFolderPath.setText(path);
+                              sharedFolder = new File(path);
+                              Toast.makeText(this, "Folder Selected!", Toast.LENGTH_SHORT).show();
+                          } else {
+                              Toast.makeText(this, "Could not resolve physical folder path", Toast.LENGTH_SHORT).show();
+                          }
+                      }
+                  }
+              );
+
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
                   setContentView(R.layout.activity_main);
 
-                  etFolderPath = findViewById(R.id.etFolderPath);
+                  tvFolderPath = findViewById(R.id.tvFolderPath);
                   etTargetIp = findViewById(R.id.etTargetIp);
                   tvDeviceIp = findViewById(R.id.tvDeviceIp);
                   tvStatus = findViewById(R.id.tvStatus);
                   btnStartServer = findViewById(R.id.btnStartServer);
-                  btnQuickDownload = findViewById(R.id.btnQuickDownload);
+                  btnChooseFolder = findViewById(R.id.btnChooseFolder);
+                  btnResetDownload = findViewById(R.id.btnResetDownload);
+                  btnConnectRemote = findViewById(R.id.btnConnectRemote);
 
                   checkAndRequestStoragePermission();
 
                   String defaultPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath();
-                  etFolderPath.setText(defaultPath);
+                  tvFolderPath.setText(defaultPath);
+                  sharedFolder = new File(defaultPath);
 
-                  btnQuickDownload.setOnClickListener(v -> {
-                      etFolderPath.setText(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath());
-                      Toast.makeText(this, "Set to Downloads folder", Toast.LENGTH_SHORT).show();
+                  btnChooseFolder.setOnClickListener(v -> folderPickerLauncher.launch(null));
+
+                  btnResetDownload.setOnClickListener(v -> {
+                      String dl = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath();
+                      tvFolderPath.setText(dl);
+                      sharedFolder = new File(dl);
+                      Toast.makeText(this, "Reset to Downloads folder", Toast.LENGTH_SHORT).show();
                   });
 
                   String ip = getLocalIpAddress();
@@ -302,10 +466,10 @@ jobs:
                   btnStartServer.setOnClickListener(v -> {
                       if (!isRunning) {
                           checkAndRequestStoragePermission();
-                          String pathStr = etFolderPath.getText().toString().trim();
+                          String pathStr = tvFolderPath.getText().toString().trim();
                           sharedFolder = new File(pathStr);
                           if (!sharedFolder.exists() || !sharedFolder.isDirectory()) {
-                              Toast.makeText(this, "Folder does not exist or is not a directory!", Toast.LENGTH_SHORT).show();
+                              Toast.makeText(this, "Invalid folder path!", Toast.LENGTH_SHORT).show();
                               return;
                           }
                           startServer();
@@ -313,6 +477,33 @@ jobs:
                           stopServer();
                       }
                   });
+
+                  btnConnectRemote.setOnClickListener(v -> {
+                      String remoteIp = etTargetIp.getText().toString().trim();
+                      if (remoteIp.isEmpty()) {
+                          Toast.makeText(this, "Please enter the other mobile's IP address", Toast.LENGTH_SHORT).show();
+                          return;
+                      }
+                      String url = remoteIp.startsWith("http") ? remoteIp : "http://" + remoteIp + ":" + PORT;
+                      Intent intent = new Intent(MainActivity.this, ClientBrowserActivity.class);
+                      intent.putExtra("URL", url);
+                      startActivity(intent);
+                  });
+              }
+
+              private String getPathFromUri(Uri uri) {
+                  try {
+                      String docId = DocumentsContract.getTreeDocumentId(uri);
+                      String[] split = docId.split(":");
+                      String type = split[0];
+                      if ("primary".equalsIgnoreCase(type)) {
+                          return Environment.getExternalStorageDirectory() + "/" + (split.length > 1 ? split[1] : "");
+                      } else {
+                          return "/storage/" + type + "/" + (split.length > 1 ? split[1] : "");
+                      }
+                  } catch (Exception e) {
+                      return null;
+                  }
               }
 
               private void checkAndRequestStoragePermission() {
@@ -322,7 +513,6 @@ jobs:
                               Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
                               intent.setData(Uri.parse("package:" + getPackageName()));
                               startActivity(intent);
-                              Toast.makeText(this, "Please enable 'Allow access to manage all files'", Toast.LENGTH_LONG).show();
                           } catch (Exception e) {
                               Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
                               startActivity(intent);
@@ -368,7 +558,7 @@ jobs:
                               new Thread(new ClientHandler(clientSocket, sharedFolder)).start();
                           }
                       } catch (IOException e) {
-                          // Socket closed
+                          // Closed
                       }
                   });
                   serverThread.start();
@@ -420,31 +610,35 @@ jobs:
                               html.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
                               html.append("<title>KmServer Files</title>");
                               html.append("<style>");
-                              html.append("body { font-family: sans-serif; padding: 20px; background: #fafafa; }");
+                              html.append("body { font-family: sans-serif; padding: 16px; background: #fafafa; }");
                               html.append("h2 { color: #1976D2; }");
-                              html.append("ul { list-style-type: none; padding: 0; }");
-                              html.append("li { margin: 10px 0; padding: 12px; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }");
-                              html.append("a { text-decoration: none; color: #0d47a1; font-weight: bold; font-size: 16px; word-break: break-all; }");
-                              html.append(".size { color: #666; font-size: 13px; margin-left: 10px; }");
+                              html.append("ul { list-style: none; padding: 0; }");
+                              html.append("li { margin: 10px 0; padding: 12px; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }");
+                              html.append("a { text-decoration: none; color: #0d47a1; font-weight: bold; font-size: 15px; word-break: break-all; }");
+                              html.append(".btn { background: #1976D2; color: #fff; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 13px; }");
+                              html.append(".size { color: #666; font-size: 12px; margin-left: 8px; }");
                               html.append("</style></head><body>");
-                              html.append("<h2>KmServer - Shared Files</h2>");
+                              html.append("<h2>KmServer Shared Files</h2>");
                               html.append("<p><b>Folder:</b> ").append(folder.getAbsolutePath()).append("</p><ul>");
 
                               File[] files = folder.listFiles();
                               if (files != null && files.length > 0) {
                                   for (File f : files) {
                                       if (f.isFile() && !f.isHidden()) {
-                                          html.append("<li><a href=\"/download?name=")
+                                          html.append("<li><div><a href=\"/download?name=")
                                               .append(Uri.encode(f.getName()))
                                               .append("\">📄 ")
                                               .append(f.getName())
                                               .append("</a><span class=\"size\">(")
                                               .append(formatSize(f.length()))
-                                              .append(")</span></li>");
+                                              .append(")</span></div>")
+                                              .append("<a class=\"btn\" href=\"/download?name=")
+                                              .append(Uri.encode(f.getName()))
+                                              .append("\">Download</a></li>");
                                       }
                                   }
                               } else {
-                                  html.append("<li><b>No readable files found in this directory.</b><br>Make sure 'All files access' permission is allowed on the host phone.</li>");
+                                  html.append("<li><b>No readable files in this folder.</b></li>");
                               }
                               html.append("</ul></body></html>");
 
