@@ -19,7 +19,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Accept Pre-installed Android SDK Licenses
+      - name: Accept Android SDK Licenses
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
@@ -31,23 +31,14 @@ jobs:
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/mipmap-anydpi-v26
 
-          # 1. gradle.properties (Fixes AndroidX AarMetadata error)
+          # 1. gradle.properties
           cat << 'EOF' > gradle.properties
           android.useAndroidX=true
           android.nonTransitiveRClass=true
           org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
           EOF
 
-          # 2. gradle-wrapper.properties (Locks Gradle to stable 8.4)
-          cat << 'EOF' > gradle/wrapper/gradle-wrapper.properties
-          distributionBase=GRADLE_USER_HOME
-          distributionPath=wrapper/dists
-          distributionUrl=https\://services.gradle.org/distributions/gradle-8.4-bin.zip
-          zipStoreBase=GRADLE_USER_HOME
-          zipStorePath=wrapper/dists
-          EOF
-
-          # 3. settings.gradle
+          # 2. settings.gradle
           cat << 'EOF' > settings.gradle
           pluginManagement {
               repositories {
@@ -57,7 +48,7 @@ jobs:
               }
           }
           dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
               repositories {
                   google()
                   mavenCentral()
@@ -67,7 +58,7 @@ jobs:
           include ':app'
           EOF
 
-          # 4. build.gradle (Project)
+          # 3. build.gradle (Project)
           cat << 'EOF' > build.gradle
           buildscript {
               repositories {
@@ -78,15 +69,9 @@ jobs:
                   classpath 'com.android.tools.build:gradle:8.2.2'
               }
           }
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
           EOF
 
-          # 5. app/build.gradle
+          # 4. app/build.gradle
           cat << 'EOF' > app/build.gradle
           plugins {
               id 'com.android.application'
@@ -118,7 +103,7 @@ jobs:
           }
           EOF
 
-          # 6. AndroidManifest.xml
+          # 5. AndroidManifest.xml
           cat << 'EOF' > app/src/main/AndroidManifest.xml
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET" />
@@ -145,7 +130,7 @@ jobs:
           </manifest>
           EOF
 
-          # 7. Network Server Icon Vector (Km Icon)
+          # 6. Network Server Icon (Km Icon)
           cat << 'EOF' > app/src/main/res/drawable/ic_network_server.xml
           <vector xmlns:android="http://schemas.android.com/apk/res/android"
               android:width="108dp"
@@ -165,7 +150,7 @@ jobs:
           </adaptive-icon>
           EOF
 
-          # 8. Layout UI
+          # 7. Layout UI
           cat << 'EOF' > app/src/main/res/layout/activity_main.xml
           <?xml version="1.0" encoding="utf-8"?>
           <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -238,7 +223,7 @@ jobs:
           </LinearLayout>
           EOF
 
-          # 9. Java Implementation
+          # 8. Java Implementation
           cat << 'EOF' > app/src/main/java/com/km/server/MainActivity.java
           package com.km.server;
 
@@ -415,11 +400,13 @@ jobs:
           }
           EOF
 
-      - name: Setup Gradle Wrapper and Build APK
-        run: |
-          gradle wrapper --gradle-version 8.4
-          chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+      - name: Setup Gradle 8.4 and Build APK
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.4
+
+      - name: Build APK
+        run: gradle assembleRelease --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
